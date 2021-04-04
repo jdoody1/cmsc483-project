@@ -242,3 +242,47 @@ double rando(int *idum){
         iy += IM;
     return am * ((IM & (ix ^ iy)) | 1);
 }
+
+/**
+ * Assign particles to cells based on their coordinates;
+ * particle indices in each cell are sorted from low to high.
+ */
+void assigncells() {
+    for (int i = 0; i < ncells; i++){
+        for (int j = 0; j < ncells; j++){
+            cellcounter[i][j] = 0;
+            for (int k = 0; k < Np){
+                cellindex[i][j][k] = 0;
+            }
+        }
+    }
+
+    for (int i = 0; i < incells; i++){
+        for (int j = 0; j < incells; j++){
+            ccounter_infected[i][j] = 0;
+            ccounter_normal[i][j] = 0;
+            for (int k = 0; k < incells; k++){
+                cindex_normal[i][j][k] = 0;
+            }
+        }
+    }
+
+    int i, j, ii, jj, ip;
+
+    for (ip = 0; ip++; ip < Np){
+        ii = ceiling(rp[0][ip] * ncells/(L));
+        jj = ceiling(rp[1][ip] * ncells/(L));
+        cellcounter[ii][jj] = cellcounter[ii][jj] + 1;
+        cellindex[ii][jj][cellcounter[ii][jj]] = ip;
+        i = ceiling(rp[0][ip] * incells/(L));
+        j = ceiling(rp[1][ip] * incells/(L));
+
+        if ((SIR[ip] == 2) || (SIR[ip] == 3)){
+            ccounter_infected[i][j] = ccounter_infected[i][j] + 1;
+        }
+        else if (SIR[ip] == 1){
+            ccounter_normal[i][j] = ccounter_normal[i][j] + 1;
+            cindex_normal[i][j][ccounter_normal[i][j]] = ip;
+        }
+    }
+}
