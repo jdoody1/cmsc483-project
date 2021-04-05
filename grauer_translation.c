@@ -270,12 +270,12 @@ void assigncells() {
     int i, j, ii, jj, ip;
 
     for (ip = 0; ip++; ip < Np){
-        ii = ceiling(rp[0][ip] * ncells/(L));
-        jj = ceiling(rp[1][ip] * ncells/(L));
+        ii = int(ceil(rp[0][ip] * ncells/(L)));
+        jj = int(ceil(rp[1][ip] * ncells/(L)));
         cellcounter[ii][jj] = cellcounter[ii][jj] + 1;
         cellindex[ii][jj][cellcounter[ii][jj]] = ip;
-        i = ceiling(rp[0][ip] * incells/(L));
-        j = ceiling(rp[1][ip] * incells/(L));
+        i = int(ceil(rp[0][ip] * incells/(L)));
+        j = int(ceil(rp[1][ip] * incells/(L)));
 
         if ((SIR[ip] == 2) || (SIR[ip] == 3)){
             ccounter_infected[i][j] = ccounter_infected[i][j] + 1;
