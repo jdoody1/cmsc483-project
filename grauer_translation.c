@@ -286,3 +286,105 @@ void assigncells() {
         }
     }
 }
+
+// Convention: xij = xi-xj, yij = yi-yj, zij = zi-zj; Fij = -Fji.
+void calcforces() {
+    for (int i = 0; i < Np; i++){
+        dxpart[i] = 0;
+        dypart[i] = 0;
+    }
+
+    int i, j, ii, jj, icell, jcell, ip, jp, icount, jcount, icity;
+    double r, r2, xij, yij, xforce, yforce, rforce, rmin;
+
+    for (i = 0; i < ncells; i++){
+        for (j = 0; j < ncells; j++){
+            for (icount = 0; icount < cellcounter[i][j]; icount++){
+                rmin = L;
+                ip = cellindex[i][j][icount];
+
+                for (ii = i-1; ii < i+1; ii++){
+                    for (jj = j-1; jj < j+1; jj++){
+                        if (ii == -1) icell = ncells - 1;
+                        else if (ii == ncells) icell = 0;
+                        else icell = ii;
+
+                        if (jj == -1) jcell = ncells - 1;
+                        else if (jj == ncells) jcell = 0;
+                        else jcell = jj;
+
+                        for (jcount = 0; jcount < cellcounter[icell][jcell]; jcount++){
+                            jp = cellindex[icell][jcell][jcount];
+                            if (ip != jp){
+                                xij = rp[0][ip] - rp[0][jp];
+                                yij = rp[1][ip] - rp[1][jp];
+
+                                if (i == 0 && icell == ncells-1) xij = xij + L;
+                                else if (i == ncells-1 && icell == 0) xij = xij - L;
+                                if (j == 0 && jcell == ncells-1) yij = yij + L;
+                                else if (j == ncells-1 && jcell == 0) yij = yij - L;
+
+                                r2 = pow(xij, 2) + pow(yij, 2);
+                                r = sqrt(r2);
+
+                                // count neighbors - social distancing
+                                if (r <= 1.5*mindestabstand){
+                                    ncounter_new[ip] = ncounter_new[ip] + 1;
+                                    nindex_new[ip][ncounter_new[ip]] = jp;
+                                    if (r <= rmin) {
+                                        nindex_new[ip][ncounter_new[ip]] = nindex_new[ip][0];
+                                        nindex_new[ip][0] = jp;
+                                        rmin = r;
+                                    }
+                                }
+
+                                // Infection
+                                if ((equil == 0) && (r <= rinf) && ((SIR[ip] == 2) || (SIR[ip] == 3)) && (SIR[jp] == 1)){
+                                    if (rando(idum) <= inf_prob){
+                                        if (rando(idum) <= 0.75) SIR[jp] = 2;
+                                        else SIR[jp] = 3;
+                                    }
+                                }
+
+                                // Potential
+                                if ((r <= rcutoff) && ((jp != nindex[ip][0]) || (SIR[jp] == 3))){
+                                    // WCA-pot
+                                    if (r >= rminwca) rforce=-12*(pow(rm, 6)/pow(r, 7) - pow(rm, 12)/pow(r, 13));
+                                    else rforce=-12*(pow(rm, 6)/pow(rminwca, 7) - pow(rm, 12)/pow(rminwca, 13));
+                                    xforce = xij * rforce / r;
+                                    yforce = yij * rforce / r;
+                                    dxpart[ip] = dxpart[ip] + dt*epst_eff*xforce;
+                                    dypart[ip] = dypart[ip] + dt*epst_eff*yforce;
+                                }
+
+                                if ((r <= mindestabstand) && (jp == nindex[ip][0]) && (SIR[jp] != 6)){
+                                    // attractive part of WCA-pot for pair attraction
+                                    if (r >= rminwca) rforce = -12*(pow(rm, 6)/pow(r, 7));
+                                    else rforce = -12*(pow(rm, 6)/pow(rminwca, 7));
+                                    xforce = xij*rforce/r;
+                                    yforce = yij*rforce/r;
+                                    dxpart[ip] = dxpart[ip] + dt*epst_attr_eff*xforce;
+                                    dypart[ip] = dypart[ip] + dt*epst_attr_eff*yforce;
+                                }
+                            }
+                        }
+                    }
+                }
+                // attraction from City
+                for (icity = 0; icity < Ncity){
+                    xij = rp[0][ip] - rcity[0][icity];
+                    yij = rp[1][ip] - rcity[1][icity];
+                    if (xij > L/2) xij = L - xij;
+                    else if (xij < -L/2) xij = L + xij;
+                    if (yij > L/2) yij = L - yij;
+                    else if (yij < -L/2) yij = L + yij;
+
+                    xforce = xij*rforce/r;
+                    yforce = yij*rforce/r;
+                    dxpart[ip] = dxpart[ip] + dt*xforce;
+                    dypart[ip] = dypart[ip] + dt*yforce;
+                }
+            }
+        }
+    }
+}
