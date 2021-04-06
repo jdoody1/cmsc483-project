@@ -14,6 +14,8 @@ double **rp, **inc, **eff_inc, **rcity;
 int *ncounter, *ncounter_new;
 int **cellcounter, **nindex, **nindex_new, **ccounter_normal, **ccounter_infected;
 int ***cellindex, ***cindex_normal;
+float g;
+bool gaus_stored = false;
 
 double rando(int*);
 
@@ -386,5 +388,68 @@ void calcforces() {
                 }
             }
         }
+    }
+}
+
+float gasdev(float harvest){
+    float rsq, v1, v2;
+    if (gaus_stored) {
+        harvest = g;
+        gaus_stored = false;
+    }
+    else {
+        while (true) {
+            v1 = rando(idum);
+            v2 = random(idum);
+            v1 = 2.0 * v1 - 1.0;
+            v2 = 2.0 * v2 - 1.0;
+            rsq = pow(v1, 2) + pow(v2, 2);
+            if (rsq > 0.0 && rsq < 1.0) {break;}
+        }
+        rsq = sqrt(-2.0 * log(rsq) / rsq);
+        harvest = v1 * rsq;
+        g = v2 * rsq;
+        gaus_stored = true;
+    }
+    if (harvest == 0) harvest = pow(10, -10);
+    return harvest;
+}
+
+void diffusion() {
+    int ip;
+    float harvest;
+
+    for (ip = 0; ip < Np; ip++){
+        gasdev(harvest);
+        dxpart[ip] = dxpart[ip] + sqrt(2 * *D_T) * sqrt(dt) * harvest;
+        gasdev(harvest);
+        dypart[ip] = dypart[ip] + sqrt(2 * *D_T) * sqrt(dt) * harvest;
+    }
+}
+
+void move() {
+    ncounter = ncounter_new;
+    nindex = nindex_new;
+
+    for (int i = 0; i < Np; i++){
+        rp[0][i] = rp[0][i] + dxpart[i];
+        rp[1][i] = rp[1][i] + dypart[i];
+
+        dxpart[i] = 0;
+        dypart[i] = 0;
+
+        ncounter_new[i] = 0;
+        for (int j = 0; j < Np; j++){
+            nindex_new[i][j] = 0;
+        }
+    }
+}
+
+void boundarycondition() {
+    for (int i = 0; i < Np; i++){
+        if (rp[0][i] > L) rp[0][i] = rp[0][i] - L;
+        else if (rp[0][i] < 0) rp[0][i] = rp[0][i] + L;
+        if (rp[1][i] > L) rp[1][i] = rp[1][i] - L;
+        else if (rp[1][i] < 0) rp[1][i] = rp[1][i] + L;
     }
 }
