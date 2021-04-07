@@ -18,6 +18,14 @@ float g;
 bool gaus_stored = false;
 
 double rando(int*);
+void assigncells();
+void calcforces();
+void diffusion();
+void move();
+void boundarycondition();
+void disease_progression();
+void writetrajectory(int framecount);
+void vaccination();
 
 int main(int argc, char *argv[]) {
     if (argc != 2){
@@ -128,8 +136,8 @@ int main(int argc, char *argv[]) {
     dist = 0;
     while (dist < mincitydist){
         for (i = 0; i < Ncity; i++){
-            rcity[0][i] = (L-2*dx)*rando(idum)+dx;
-            rcity[1][i] = (L-2*dx)*rando(idum)+dx;
+            rcity[0][i] = (L-2*dx)*rando(&idum)+dx;
+            rcity[1][i] = (L-2*dx)*rando(&idum)+dx;
             if (distx > L/2) {
                 distx = L - distx;
             }
@@ -253,7 +261,7 @@ void assigncells() {
     for (int i = 0; i < ncells; i++){
         for (int j = 0; j < ncells; j++){
             cellcounter[i][j] = 0;
-            for (int k = 0; k < Np){
+            for (int k = 0; k < Np; k++){
                 cellindex[i][j][k] = 0;
             }
         }
@@ -272,12 +280,12 @@ void assigncells() {
     int i, j, ii, jj, ip;
 
     for (ip = 0; ip++; ip < Np){
-        ii = int(ceil(rp[0][ip] * ncells/(L)));
-        jj = int(ceil(rp[1][ip] * ncells/(L)));
+        ii = (int) ceil(rp[0][ip] * ncells/(L));
+        jj = (int) ceil(rp[1][ip] * ncells/(L));
         cellcounter[ii][jj] = cellcounter[ii][jj] + 1;
         cellindex[ii][jj][cellcounter[ii][jj]] = ip;
-        i = int(ceil(rp[0][ip] * incells/(L)));
-        j = int(ceil(rp[1][ip] * incells/(L)));
+        i = (int) ceil(rp[0][ip] * incells/(L));
+        j = (int) ceil(rp[1][ip] * incells/(L));
 
         if ((SIR[ip] == 2) || (SIR[ip] == 3)){
             ccounter_infected[i][j] = ccounter_infected[i][j] + 1;
@@ -342,8 +350,8 @@ void calcforces() {
 
                                 // Infection
                                 if ((equil == 0) && (r <= rinf) && ((SIR[ip] == 2) || (SIR[ip] == 3)) && (SIR[jp] == 1)){
-                                    if (rando(idum) <= inf_prob){
-                                        if (rando(idum) <= 0.75) SIR[jp] = 2;
+                                    if (rando(&idum) <= inf_prob){
+                                        if (rando(&idum) <= 0.75) SIR[jp] = 2;
                                         else SIR[jp] = 3;
                                     }
                                 }
@@ -373,7 +381,7 @@ void calcforces() {
                     }
                 }
                 // attraction from City
-                for (icity = 0; icity < Ncity){
+                for (icity = 0; icity < Ncity; icity++){
                     xij = rp[0][ip] - rcity[0][icity];
                     yij = rp[1][ip] - rcity[1][icity];
                     if (xij > L/2) xij = L - xij;
@@ -399,8 +407,8 @@ float gasdev(float harvest){
     }
     else {
         while (true) {
-            v1 = rando(idum);
-            v2 = random(idum);
+            v1 = rando(&idum);
+            v2 = rando(&idum);
             v1 = 2.0 * v1 - 1.0;
             v2 = 2.0 * v2 - 1.0;
             rsq = pow(v1, 2) + pow(v2, 2);
@@ -421,9 +429,9 @@ void diffusion() {
 
     for (ip = 0; ip < Np; ip++){
         gasdev(harvest);
-        dxpart[ip] = dxpart[ip] + sqrt(2 * *D_T) * sqrt(dt) * harvest;
+        dxpart[ip] = dxpart[ip] + sqrt(2 * D_T) * sqrt(dt) * harvest;
         gasdev(harvest);
-        dypart[ip] = dypart[ip] + sqrt(2 * *D_T) * sqrt(dt) * harvest;
+        dypart[ip] = dypart[ip] + sqrt(2 * D_T) * sqrt(dt) * harvest;
     }
 }
 
@@ -452,4 +460,99 @@ void boundarycondition() {
         if (rp[1][i] > L) rp[1][i] = rp[1][i] - L;
         else if (rp[1][i] < 0) rp[1][i] = rp[1][i] + L;
     }
+}
+
+void disease_progression() {
+    for (int i = 0; i < Np; i++){
+        if (SIR[i] == 2){
+            disease_time[i] += dt;
+            if (disease_time[i] >= maxdisease_time){
+                if (rando(&idum) <= 0.01) SIR[i] = 6;
+                else SIR[i]=4;
+            }
+        } else if (SIR[i] == 3){
+            disease_time[i] += dt;
+            if (disease_time[i] >= maxdisease_time){
+                if (rando(&idum) <= 0.035) SIR[i] = 6;
+                else SIR[i] = 4;
+            }
+
+        } else if (SIR[i] == 4 || SIR[i] == 6){
+            disease_time[i] += dt;
+        }
+
+        if ((SIR[i] == 3 && disease_time[i] >= maxdisease_time/3) || SIR[i] == 6){
+            dxpart[i] = 0;
+            dypart[i] = 0;
+        }
+    }
+}
+
+void vaccination() {
+    double sum_inc = 0;
+
+    for (int i = 0; i < incells; i++){
+        for (int j = 0; j < incells; j++){
+            if (ccounter_infected[i][j] > 0) inc[i][j] = ccounter_normal[i][j] * ccounter_infected[i][j];
+            else inc[i][j] = 0;
+            sum_inc += inc[i][j];
+        }
+    }
+
+    double rest = 0;
+
+    for (int i = 0; i < incells; i++){
+        for (int j = 0; j < incells; i++){
+            eff_inc[i][j] = inc[i][j] / sum_inc * availvacc;
+        }
+    }
+
+    for (int i = 0; i < incells; i++){
+        for (int j = 0; j < incells; j++){
+            if (eff_inc[i][j] > ccounter_normal[i][j]) rest += eff_inc[i][j] - ccounter_normal[i][j];
+            for (int k = 0; k < ccounter_normal[i][j]; k++){
+                int idx = cindex_normal[i][j][k];
+                if (rando(&idum) <= eff_inc[i][j] / ccounter_normal[i][j]) SIR[idx] = 5;
+            }
+        }
+    }
+
+    if (rest > 0){
+        int sum_ccounter_normal = 0;
+        for (int i = 0; i < incells; i++){
+            for (int j = 0; j < incells; j++){
+                sum_ccounter_normal += ccounter_normal[i][j];
+            }
+        }
+        double prob = rest / sum_ccounter_normal;
+        for (int i = 0; i < Np; i++){
+            if (SIR[i] == 1){
+                if (rando(&idum) <= prob) SIR[i] = 5;
+            }
+        }
+    }
+
+}
+
+void writetrajectory(int framecount) {
+    
+    char trajFileName[14];
+    snprintf(trajFileName, 14, "traj_%04d.dat", framecount);
+    FILE *trajFile = fopen(trajFileName, "w+");
+    for (int i = 0; i < Np; i++){
+        char line[40];
+        snprintf(line, 40, "%.18g %.18g\r\n", rp[1][i], rp[2][i]);
+        fputs(line, trajFile);
+    }
+    fclose(trajFile);
+
+    char dataFileName[14];
+    snprintf(dataFileName, 14, "data_%04d.dat", framecount);
+    FILE *dataFile = fopen(dataFileName, "w+");
+    for (int i = 0; i < Np; i++){
+        char line[40];
+        snprintf(line, 40, "%.18g %.18g\r\n", SIR[i], disease_time[i]);
+        fputs(line, dataFile);
+    }
+    fclose(trajFile);
 }
