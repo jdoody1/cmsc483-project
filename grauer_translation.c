@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
         k_city[j] = 1/(2*pow(R_city[j],2));
     }
 
-    for (i = 1; i < Np; i++){
+    for (i = 0; i < Np; i++){
         rp[0][i] = (L-2*dx)*rando(&idum)+dx;
         rp[1][i] = (L-2*dx)*rando(&idum)+dx;
     }
@@ -502,7 +502,7 @@ void vaccination() {
     double rest = 0;
 
     for (int i = 0; i < incells; i++){
-        for (int j = 0; j < incells; i++){
+        for (int j = 0; j < incells; j++){
             eff_inc[i][j] = inc[i][j] / sum_inc * availvacc;
         }
     }
@@ -541,7 +541,7 @@ void writetrajectory(int framecount) {
     FILE *trajFile = fopen(trajFileName, "w+");
     for (int i = 0; i < Np; i++){
         char line[40];
-        snprintf(line, 40, "%.18g %.18g\r\n", rp[1][i], rp[2][i]);
+        snprintf(line, 40, "%.18g %.18g\r\n", rp[0][i], rp[1][i]);
         fputs(line, trajFile);
     }
     fclose(trajFile);
