@@ -233,12 +233,14 @@ double rando(int *idum){
     const int IM=2147483647;
     const int IQ=127773;
     const int IR=2836;
+
+    const double NEAREST_BELOW_ONE = .999999940395355;
     static double am;
     static int ix=-1;
     static int iy = -1;
     static int k;
-    if (idum <= 0 || iy < 0){
-        am = 1.0/IM;
+    if (*idum <= 0 || iy < 0){
+        am = NEAREST_BELOW_ONE/IM;
         iy = (888889999 ^ abs(*idum)) | 1;
         ix = 777755555 ^ abs(*idum);
         *idum = abs(*idum) + 1;
