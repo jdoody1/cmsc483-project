@@ -135,17 +135,26 @@ int main(int argc, char *argv[]) {
 
     dist = 0;
     while (dist < mincitydist){
-        for (i = 0; i < Ncity; i++){
+        for (i = 0; i < Ncity; i++) {
             rcity[0][i] = (L-2*dx)*rando(&idum)+dx;
             rcity[1][i] = (L-2*dx)*rando(&idum)+dx;
-            if (distx > L/2) {
-                distx = L - distx;
-            }
-            if (disty > L/2) {
-                disty = L - disty;
-            }
-            if (sqrt(distx*distx + disty*disty) <= dist) {
-                dist = sqrt(pow(rcity[0][i] - rcity[0][j],2) + pow(rcity[1][i] - rcity[1][j],2));
+        }
+        dist = L;
+        for (i = 0; i < Ncity; i++){
+            for (j = 0; j < Ncity; j++){
+                if (i != j){
+                    distx = fabs(rcity[0][i] - rcity[0][j]);
+                    disty = fabs(rcity[1][i] - rcity[1][j]);
+                    if (distx > L/2) {
+                        distx = L - distx;
+                    }
+                    if (disty > L/2) {
+                        disty = L - disty;
+                    }
+                    if (sqrt(distx*distx + disty*disty) <= dist) {
+                        dist = sqrt(pow(rcity[0][i] - rcity[0][j],2) + pow(rcity[1][i] - rcity[1][j],2));
+                    }
+                }
             }
         }
     }
@@ -223,6 +232,7 @@ int main(int argc, char *argv[]) {
             framecount++;
         }
         time += dt;
+        exit(0);
     }
 
     return 0;
@@ -234,8 +244,8 @@ double rando(int *idum){
     const int IQ=127773;
     const int IR=2836;
 
-    const double NEAREST_BELOW_ONE = .999999940395355;
-    static double am;
+    const float NEAREST_BELOW_ONE = 0.999999940395355224609375f;
+    static float am;
     static int ix=-1;
     static int iy = -1;
     static int k;
@@ -245,9 +255,9 @@ double rando(int *idum){
         ix = 777755555 ^ abs(*idum);
         *idum = abs(*idum) + 1;
     }
-    ix ^= ix << 13;
-    ix ^= ix >> 17;
-    ix ^= ix << 5;
+    ix ^= (unsigned int)ix << 13;
+    ix ^= (unsigned int)ix >> 17;
+    ix ^= (unsigned int)ix << 5;
     k = iy/IQ;
     iy = IA*(iy-k*IQ)-IR*k;
     if (iy < 0)
@@ -537,7 +547,7 @@ void vaccination() {
 }
 
 void writetrajectory(int framecount) {
-    
+
     char trajFileName[14];
     snprintf(trajFileName, 14, "traj_%04d.dat", framecount);
     FILE *trajFile = fopen(trajFileName, "w+");
