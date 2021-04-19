@@ -551,9 +551,9 @@ void writetrajectory(int framecount) {
     char trajFileName[14];
     snprintf(trajFileName, 14, "traj_%04d.dat", framecount);
     FILE *trajFile = fopen(trajFileName, "w+");
-    for (int i = 0; i < Np; i++){
+    for (int idx = 0; idx < Np; idx++){
         char line[40];
-        snprintf(line, 40, "%.18g %.18g\r\n", rp[0][i], rp[1][i]);
+        snprintf(line, 50, "%.18g %.18g\n", rp[0][idx], rp[1][idx]);
         fputs(line, trajFile);
     }
     fclose(trajFile);
@@ -561,10 +561,10 @@ void writetrajectory(int framecount) {
     char dataFileName[14];
     snprintf(dataFileName, 14, "data_%04d.dat", framecount);
     FILE *dataFile = fopen(dataFileName, "w+");
-    for (int i = 0; i < Np; i++){
+    for (int idx = 0; idx < Np; idx++){
         char line[40];
-        snprintf(line, 40, "%.18g %.18g\r\n", SIR[i], disease_time[i]);
+        snprintf(line, 50, "%.18g %.18g\n", SIR[idx], disease_time[idx]);
         fputs(line, dataFile);
     }
-    fclose(trajFile);
+    fclose(dataFile);
 }
