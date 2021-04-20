@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
 
 int I4B, I2B, I1B;
 double SP, DP, SPC, DPC;
@@ -99,7 +100,7 @@ int main(int argc, char *argv[]) {
     for (int idx = 0; idx < incells; idx++){
         cindex_normal[idx] = malloc(sizeof(int*)*incells);
         for (int jdx = 0; jdx < incells; jdx++){
-            cindex_normal[idx][jdx] = malloc(sizeof(int)*incells);
+            cindex_normal[idx][jdx] = malloc(sizeof(int)*Np);
         }
     }
     ccounter_infected = malloc(sizeof(int*)*incells);
@@ -109,8 +110,8 @@ int main(int argc, char *argv[]) {
     for (int idx = 0; idx < incells; idx++){
         ccounter_infected[idx] = malloc(sizeof(int)*incells);
         ccounter_normal[idx] = malloc(sizeof(int)*incells);
-        inc[idx] = malloc(sizeof(int)*incells);
-        eff_inc[idx] = malloc(sizeof(int)*incells);
+        inc[idx] = malloc(sizeof(double)*incells);
+        eff_inc[idx] = malloc(sizeof(double)*incells);
     }
 
     rcity = malloc(sizeof(double*)*2);
@@ -195,11 +196,20 @@ int main(int argc, char *argv[]) {
         } else {
             A_city = A_citytmp;
         }
+//        printf("Pretime: time=%d\n", time);
+//        printf("Before assigncells: %f %f\n", rp[0][0], rp[1][0]);
         assigncells();
+//        printf("Before calcforces: %f %f\n", rp[0][0], rp[1][0]);
         calcforces();
+//        printf("Before diffusion: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("dxpart before diffusion: %.50f\n", dxpart[0]);
         diffusion();
+//        printf("Before move: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("dxpart before move: %.50f\n", dxpart[0]);
         move();
+//        printf("Before boundarycondition: %f %f\n", rp[0][0], rp[1][0]);
         boundarycondition();
+//        printf("Before time: %f %f\n", rp[0][0], rp[1][0]);
         time += dt;
     }
     equil = 0;
@@ -218,21 +228,30 @@ int main(int argc, char *argv[]) {
             epst_eff = epst;
             epst_attr_eff = epst_attr;
         }
+        printf("Timestep: time=%f\n", time);
+        printf("Before assigncells: %f %f\n", rp[0][0], rp[1][0]);
         assigncells();
+        printf("Before calcforces: %f %f\n", rp[0][0], rp[1][0]);
         calcforces();
+        printf("Before diffusion: %f %f\n", rp[0][0], rp[1][0]);
         diffusion();
+        printf("Before disease_progression: %f %f\n", rp[0][0], rp[1][0]);
         disease_progression();
         if (time > impftime){
+            printf("Before vaccination: %f %f\n", rp[0][0], rp[1][0]);
             vaccination();
         }
+        printf("Before move: %f %f\n", rp[0][0], rp[1][0]);
         move();
+        printf("Before boundarycondition: %f %f\n", rp[0][0], rp[1][0]);
         boundarycondition();
+        printf("Before writetrajectory: %f %f\n", rp[0][0], rp[1][0]);
         if (fmod(time,2) < dt){
             writetrajectory(framecount);
             framecount++;
         }
         time += dt;
-        exit(0);
+//        exit(0);
     }
 
     return 0;
@@ -291,20 +310,20 @@ void assigncells() {
 
     int i, j, ii, jj, ip;
 
-    for (ip = 0; ip++; ip < Np){
-        ii = (int) ceil(rp[0][ip] * ncells/(L));
-        jj = (int) ceil(rp[1][ip] * ncells/(L));
-        cellcounter[ii][jj] = cellcounter[ii][jj] + 1;
-        cellindex[ii][jj][cellcounter[ii][jj]] = ip;
-        i = (int) ceil(rp[0][ip] * incells/(L));
-        j = (int) ceil(rp[1][ip] * incells/(L));
+    for (ip = 0; ip < Np; ip++){
+        ii = (int) ceil(rp[0][ip] * ncells/(L)) - 1;
+        jj = (int) ceil(rp[1][ip] * ncells/(L)) - 1;
+        cellcounter[ii][jj]++;
+        cellindex[ii][jj][cellcounter[ii][jj]-1] = ip;
+        i = (int) ceil(rp[0][ip] * incells/(L)) - 1;
+        j = (int) ceil(rp[1][ip] * incells/(L)) - 1;
 
         if ((SIR[ip] == 2) || (SIR[ip] == 3)){
             ccounter_infected[i][j] = ccounter_infected[i][j] + 1;
         }
         else if (SIR[ip] == 1){
-            ccounter_normal[i][j] = ccounter_normal[i][j] + 1;
-            cindex_normal[i][j][ccounter_normal[i][j]] = ip;
+            ccounter_normal[i][j]++;
+            cindex_normal[i][j][ccounter_normal[i][j]-1] = ip;
         }
     }
 }
@@ -316,24 +335,29 @@ void calcforces() {
         dypart[i] = 0;
     }
 
-    int i, j, ii, jj, icell, jcell, ip, jp, icount, jcount, icity;
+    int icell, jcell, ip, jp, jcount, icity;
     double r, r2, xij, yij, xforce, yforce, rforce, rmin;
 
     for (i = 0; i < ncells; i++){
         for (j = 0; j < ncells; j++){
-            for (icount = 0; icount < cellcounter[i][j]; icount++){
+            for (int icount = 0; icount < cellcounter[i][j]; icount++){
                 rmin = L;
                 ip = cellindex[i][j][icount];
+                for (int ii = i-1; ii < i+1; ii++){
+                    for (int jj = j-1; jj < j+1; jj++){
+                        if (ii == -1)
+                            icell = ncells - 1;
+                        else if (ii == ncells)
+                            icell = 0;
+                        else
+                            icell = ii;
 
-                for (ii = i-1; ii < i+1; ii++){
-                    for (jj = j-1; jj < j+1; jj++){
-                        if (ii == -1) icell = ncells - 1;
-                        else if (ii == ncells) icell = 0;
-                        else icell = ii;
-
-                        if (jj == -1) jcell = ncells - 1;
-                        else if (jj == ncells) jcell = 0;
-                        else jcell = jj;
+                        if (jj == -1)
+                            jcell = ncells - 1;
+                        else if (jj == ncells)
+                            jcell = 0;
+                        else
+                            jcell = jj;
 
                         for (jcount = 0; jcount < cellcounter[icell][jcell]; jcount++){
                             jp = cellindex[icell][jcell][jcount];
@@ -341,10 +365,14 @@ void calcforces() {
                                 xij = rp[0][ip] - rp[0][jp];
                                 yij = rp[1][ip] - rp[1][jp];
 
-                                if (i == 0 && icell == ncells-1) xij = xij + L;
-                                else if (i == ncells-1 && icell == 0) xij = xij - L;
-                                if (j == 0 && jcell == ncells-1) yij = yij + L;
-                                else if (j == ncells-1 && jcell == 0) yij = yij - L;
+                                if (i == 0 && icell == ncells-1)
+                                    xij = xij + L;
+                                else if (i == ncells-1 && icell == 0)
+                                    xij = xij - L;
+                                if (j == 0 && jcell == ncells-1)
+                                    yij = yij + L;
+                                else if (j == ncells-1 && jcell == 0)
+                                    yij = yij - L;
 
                                 r2 = pow(xij, 2) + pow(yij, 2);
                                 r = sqrt(r2);
@@ -371,12 +399,14 @@ void calcforces() {
                                 // Potential
                                 if ((r <= rcutoff) && ((jp != nindex[ip][0]) || (SIR[jp] == 3))){
                                     // WCA-pot
-                                    if (r >= rminwca) rforce=-12*(pow(rm, 6)/pow(r, 7) - pow(rm, 12)/pow(r, 13));
-                                    else rforce=-12*(pow(rm, 6)/pow(rminwca, 7) - pow(rm, 12)/pow(rminwca, 13));
+                                    if (r >= rminwca)
+                                        rforce=-12*(pow(rm, 6)/pow(r, 7) - pow(rm, 12)/pow(r, 13));
+                                    else
+                                        rforce=-12*(pow(rm, 6)/pow(rminwca, 7) - pow(rm, 12)/pow(rminwca, 13));
                                     xforce = xij * rforce / r;
                                     yforce = yij * rforce / r;
-                                    dxpart[ip] = dxpart[ip] + dt*epst_eff*xforce;
-                                    dypart[ip] = dypart[ip] + dt*epst_eff*yforce;
+                                    dxpart[ip] += dt*epst_eff*xforce;
+                                    dypart[ip] += dt*epst_eff*yforce;
                                 }
 
                                 if ((r <= mindestabstand) && (jp == nindex[ip][0]) && (SIR[jp] != 6)){
@@ -396,25 +426,40 @@ void calcforces() {
                 for (icity = 0; icity < Ncity; icity++){
                     xij = rp[0][ip] - rcity[0][icity];
                     yij = rp[1][ip] - rcity[1][icity];
-                    if (xij > L/2) xij = L - xij;
-                    else if (xij < -L/2) xij = L + xij;
-                    if (yij > L/2) yij = L - yij;
-                    else if (yij < -L/2) yij = L + yij;
+                    if (xij > L/2)
+                        xij = L - xij;
+                    else if (xij < -L/2)
+                        xij = L + xij;
+                    if (yij > L/2)
+                        yij = L - yij;
+                    else if (yij < -L/2)
+                        yij = L + yij;
+                    r2 = xij*xij + yij*yij;
+                    r = sqrt(r2);
+                    if (r >= rmincity){
+                        rforce=-2*A_city*k_city[icity]*r*exp(-k_city[icity]*r*r);
+                    } else {
+                        rforce=-2*A_city*k_city[icity]*rmincity*exp(-k_city[icity]*rmincity*rmincity);
+                    }
 
+//                    printf("rforce: %.50f\n", rforce);
+//                    exit(0);
                     xforce = xij*rforce/r;
                     yforce = yij*rforce/r;
-                    dxpart[ip] = dxpart[ip] + dt*xforce;
-                    dypart[ip] = dypart[ip] + dt*yforce;
+                    dxpart[ip] += dt*xforce;
+                    dypart[ip] += dt*yforce;
                 }
             }
         }
     }
+//    printf("dxpart: %.50f\n", dxpart[0]);
+//    exit(0);
 }
 
-float gasdev(float harvest){
+void gasdev(float *harvest){
     float rsq, v1, v2;
     if (gaus_stored) {
-        harvest = g;
+        *harvest = g;
         gaus_stored = false;
     }
     else {
@@ -427,12 +472,11 @@ float gasdev(float harvest){
             if (rsq > 0.0 && rsq < 1.0) {break;}
         }
         rsq = sqrt(-2.0 * log(rsq) / rsq);
-        harvest = v1 * rsq;
+        *harvest = v1 * rsq;
         g = v2 * rsq;
         gaus_stored = true;
     }
-    if (harvest == 0) harvest = pow(10, -10);
-    return harvest;
+    if (harvest == 0) *harvest = pow(10, -10);
 }
 
 void diffusion() {
@@ -440,9 +484,9 @@ void diffusion() {
     float harvest;
 
     for (ip = 0; ip < Np; ip++){
-        gasdev(harvest);
+        gasdev(&harvest);
         dxpart[ip] = dxpart[ip] + sqrt(2 * D_T) * sqrt(dt) * harvest;
-        gasdev(harvest);
+        gasdev(&harvest);
         dypart[ip] = dypart[ip] + sqrt(2 * D_T) * sqrt(dt) * harvest;
     }
 }
@@ -451,16 +495,16 @@ void move() {
     ncounter = ncounter_new;
     nindex = nindex_new;
 
-    for (int i = 0; i < Np; i++){
-        rp[0][i] = rp[0][i] + dxpart[i];
-        rp[1][i] = rp[1][i] + dypart[i];
+    for (int idx = 0; idx < Np; idx++){
+        rp[0][idx] += dxpart[idx];
+        rp[1][idx] += dypart[idx];
 
-        dxpart[i] = 0;
-        dypart[i] = 0;
+        dxpart[idx] = 0;
+        dypart[idx] = 0;
 
-        ncounter_new[i] = 0;
-        for (int j = 0; j < Np; j++){
-            nindex_new[i][j] = 0;
+        ncounter_new[idx] = 0;
+        for (int jdx = 0; jdx < Np; jdx++){
+            nindex_new[idx][jdx] = 0;
         }
     }
 }
@@ -503,13 +547,19 @@ void disease_progression() {
 void vaccination() {
     double sum_inc = 0;
 
+    printf("Before first vacc block\n");
+
     for (int i = 0; i < incells; i++){
         for (int j = 0; j < incells; j++){
-            if (ccounter_infected[i][j] > 0) inc[i][j] = ccounter_normal[i][j] * ccounter_infected[i][j];
-            else inc[i][j] = 0;
+            if (ccounter_infected[i][j] > 0)
+                inc[i][j] = ccounter_normal[i][j] * ccounter_infected[i][j];
+            else
+                inc[i][j] = 0;
             sum_inc += inc[i][j];
         }
     }
+
+    printf("Before second vacc block\n");
 
     double rest = 0;
 
@@ -519,15 +569,21 @@ void vaccination() {
         }
     }
 
+    printf("Before third vacc block\n");
+
     for (int i = 0; i < incells; i++){
         for (int j = 0; j < incells; j++){
-            if (eff_inc[i][j] > ccounter_normal[i][j]) rest += eff_inc[i][j] - ccounter_normal[i][j];
-            for (int k = 0; k < ccounter_normal[i][j]; k++){
-                int idx = cindex_normal[i][j][k];
-                if (rando(&idum) <= eff_inc[i][j] / ccounter_normal[i][j]) SIR[idx] = 5;
+            if (eff_inc[i][j] > ccounter_normal[i][j])
+                rest += eff_inc[i][j] - ccounter_normal[i][j];
+            for (int icount = 0; icount < ccounter_normal[i][j]; icount++){
+                int idx = cindex_normal[i][j][icount];
+                if (rando(&idum) <= eff_inc[i][j] / ccounter_normal[i][j])
+                    SIR[idx] = 5;
             }
         }
     }
+
+    printf("Before fourth vacc block\n");
 
     if (rest > 0){
         int sum_ccounter_normal = 0;
@@ -539,10 +595,13 @@ void vaccination() {
         double prob = rest / sum_ccounter_normal;
         for (int i = 0; i < Np; i++){
             if (SIR[i] == 1){
-                if (rando(&idum) <= prob) SIR[i] = 5;
+                if (rando(&idum) <= prob)
+                    SIR[i] = 5;
             }
         }
     }
+
+    printf("End of vacc\n");
 
 }
 
