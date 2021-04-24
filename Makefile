@@ -1,7 +1,10 @@
 CC=gcc
-CFLAGS=-g
+CFLAGS=-g -fopenmp
 main: grauer_translation.o
-	$(CC) -o main grauer_translation.o -lm
+	$(CC) -o grauer_translation.o -lm
+
+parallel:
+	$(CC) $(CFLAGS) grauer_parallel.c -o grauer_parallel.o -lm
 
 clean:
 	rm *.o main
