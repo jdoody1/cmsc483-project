@@ -196,21 +196,24 @@ int main(int argc, char *argv[]) {
         } else {
             A_city = A_citytmp;
         }
-//        printf("Pretime: time=%d\n", time);
-//        printf("Before assigncells: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Pretime: time=%f\n", time);
+//        printf("Before assigncells: %.60f %.60f\n", rp[0][0], rp[1][0]);
         assigncells();
-//        printf("Before calcforces: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Before calcforces: %.60f %.60f\n", rp[0][0], rp[1][0]);
+//        printf("dxpart before calcforces: %.60f\n", dxpart[0]);
         calcforces();
-//        printf("Before diffusion: %f %f\n", rp[0][0], rp[1][0]);
-//        printf("dxpart before diffusion: %.50f\n", dxpart[0]);
+//        printf("Before diffusion: %.60f %.60f\n", rp[0][0], rp[1][0]);
+//        printf("dxpart before diffusion: %.60f\n", dxpart[0]);
+//        exit(0);
         diffusion();
-//        printf("Before move: %f %f\n", rp[0][0], rp[1][0]);
-//        printf("dxpart before move: %.50f\n", dxpart[0]);
+//        printf("Before move: %.60f %.60f\n", rp[0][0], rp[1][0]);
+//        printf("dxpart before move: %.60f\n", dxpart[0]);
         move();
-//        printf("Before boundarycondition: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Before boundarycondition: %.60f %.60f\n", rp[0][0], rp[1][0]);
         boundarycondition();
-//        printf("Before time: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Before time: %.60f %.60f\n", rp[0][0], rp[1][0]);
         time += dt;
+//        exit(0);
     }
     equil = 0;
 
@@ -228,25 +231,25 @@ int main(int argc, char *argv[]) {
             epst_eff = epst;
             epst_attr_eff = epst_attr;
         }
-        printf("Timestep: time=%f\n", time);
-        printf("Before assigncells: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Timestep: time=%f\n", time);
+//        printf("Before assigncells: %.60f %.60f\n", rp[0][0], rp[1][0]);
         assigncells();
-        printf("Before calcforces: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Before calcforces: %.60f %.60f\n", rp[0][0], rp[1][0]);
         calcforces();
-        printf("Before diffusion: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Before diffusion: %.60f %.60f\n", rp[0][0], rp[1][0]);
         diffusion();
-        printf("Before disease_progression: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Before disease_progression: %.60f %.60f\n", rp[0][0], rp[1][0]);
         disease_progression();
         if (time > impftime){
-            printf("Before vaccination: %f %f\n", rp[0][0], rp[1][0]);
+//            printf("Before vaccination: %.60f %.60f\n", rp[0][0], rp[1][0]);
             vaccination();
         }
-        printf("Before move: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Before move: %.60f %.60f\n", rp[0][0], rp[1][0]);
         move();
-        printf("Before boundarycondition: %f %f\n", rp[0][0], rp[1][0]);
+//        printf("Before boundarycondition: %.60f %.60f\n", rp[0][0], rp[1][0]);
         boundarycondition();
-        printf("Before writetrajectory: %f %f\n", rp[0][0], rp[1][0]);
         if (fmod(time,2) < dt){
+//            printf("Before writetrajectory: %.60f %.60f\n", rp[0][0], rp[1][0]);
             writetrajectory(framecount);
             framecount++;
         }
@@ -343,8 +346,8 @@ void calcforces() {
             for (int icount = 0; icount < cellcounter[i][j]; icount++){
                 rmin = L;
                 ip = cellindex[i][j][icount];
-                for (int ii = i-1; ii < i+1; ii++){
-                    for (int jj = j-1; jj < j+1; jj++){
+                for (int ii = i-1; ii <= i+1; ii++){
+                    for (int jj = j-1; jj <= j+1; jj++){
                         if (ii == -1)
                             icell = ncells - 1;
                         else if (ii == ncells)
@@ -405,18 +408,26 @@ void calcforces() {
                                         rforce=-12*(pow(rm, 6)/pow(rminwca, 7) - pow(rm, 12)/pow(rminwca, 13));
                                     xforce = xij * rforce / r;
                                     yforce = yij * rforce / r;
+//                                    printf("dxpart delta 1: %.60f\n", dt*epst_eff*xforce);
                                     dxpart[ip] += dt*epst_eff*xforce;
                                     dypart[ip] += dt*epst_eff*yforce;
                                 }
 
+                                // TODO This runs more often than it should
+                                // This code runs twice the first time this function is called in our version,
+                                // but in the original, the first call to this function
+                                // never triggers this if statement.
                                 if ((r <= mindestabstand) && (jp == nindex[ip][0]) && (SIR[jp] != 6)){
                                     // attractive part of WCA-pot for pair attraction
-                                    if (r >= rminwca) rforce = -12*(pow(rm, 6)/pow(r, 7));
-                                    else rforce = -12*(pow(rm, 6)/pow(rminwca, 7));
+                                    if (r >= rminwca)
+                                        rforce = -12*(pow(rm, 6)/pow(r, 7));
+                                    else
+                                        rforce = -12*(pow(rm, 6)/pow(rminwca, 7));
                                     xforce = xij*rforce/r;
                                     yforce = yij*rforce/r;
-                                    dxpart[ip] = dxpart[ip] + dt*epst_attr_eff*xforce;
-                                    dypart[ip] = dypart[ip] + dt*epst_attr_eff*yforce;
+//                                    printf("dxpart delta 2: %.60f\n", dt*epst_attr_eff*xforce);
+                                    dxpart[ip] += dt*epst_attr_eff*xforce;
+                                    dypart[ip] += dt*epst_attr_eff*yforce;
                                 }
                             }
                         }
@@ -437,22 +448,27 @@ void calcforces() {
                     r2 = xij*xij + yij*yij;
                     r = sqrt(r2);
                     if (r >= rmincity){
-                        rforce=-2*A_city*k_city[icity]*r*exp(-k_city[icity]*r*r);
+//                        printf("First rforce option\n");
+//                        printf("Parameter: %.60f\n", exp(-k_city[icity]*(r*r)));
+                        rforce=-2*A_city*k_city[icity]*r*exp(-k_city[icity]*(r*r));
                     } else {
-                        rforce=-2*A_city*k_city[icity]*rmincity*exp(-k_city[icity]*rmincity*rmincity);
+//                        printf("Second rforce option\n");
+                        rforce=-2*A_city*k_city[icity]*rmincity*exp(-k_city[icity]*(rmincity*rmincity));
                     }
 
-//                    printf("rforce: %.50f\n", rforce);
+//                    printf("rforce: %.60f\n", rforce);
 //                    exit(0);
                     xforce = xij*rforce/r;
+//                    printf("xforce: %.60f\n", xforce);
                     yforce = yij*rforce/r;
+//                    printf("dxpart delta 3: %.60f\n", dt*xforce);
                     dxpart[ip] += dt*xforce;
                     dypart[ip] += dt*yforce;
                 }
             }
         }
     }
-//    printf("dxpart: %.50f\n", dxpart[0]);
+//    printf("dxpart: %.60f\n", dxpart[0]);
 //    exit(0);
 }
 
@@ -461,17 +477,17 @@ void gasdev(float *harvest){
     if (gaus_stored) {
         *harvest = g;
         gaus_stored = false;
-    }
-    else {
+    } else {
         while (true) {
             v1 = rando(&idum);
             v2 = rando(&idum);
-            v1 = 2.0 * v1 - 1.0;
-            v2 = 2.0 * v2 - 1.0;
-            rsq = pow(v1, 2) + pow(v2, 2);
+            v1 = (float)2.0 * v1 - (float)1.0;
+            v2 = (float)2.0 * v2 - (float)1.0;
+//            rsq = pow(v1, 2) + pow(v2, 2);
+            rsq = v1*v1 + v2*v2;
             if (rsq > 0.0 && rsq < 1.0) {break;}
         }
-        rsq = sqrt(-2.0 * log(rsq) / rsq);
+        rsq = sqrtf((float)-2.0 * logf(rsq) / rsq);
         *harvest = v1 * rsq;
         g = v2 * rsq;
         gaus_stored = true;
@@ -485,9 +501,9 @@ void diffusion() {
 
     for (ip = 0; ip < Np; ip++){
         gasdev(&harvest);
-        dxpart[ip] = dxpart[ip] + sqrt(2 * D_T) * sqrt(dt) * harvest;
+        dxpart[ip] += sqrt(2 * D_T) * sqrt(dt) * harvest;
         gasdev(&harvest);
-        dypart[ip] = dypart[ip] + sqrt(2 * D_T) * sqrt(dt) * harvest;
+        dypart[ip] += sqrt(2 * D_T) * sqrt(dt) * harvest;
     }
 }
 
@@ -547,7 +563,7 @@ void disease_progression() {
 void vaccination() {
     double sum_inc = 0;
 
-    printf("Before first vacc block\n");
+//    printf("Before first vacc block\n");
 
     for (int i = 0; i < incells; i++){
         for (int j = 0; j < incells; j++){
@@ -559,7 +575,7 @@ void vaccination() {
         }
     }
 
-    printf("Before second vacc block\n");
+//    printf("Before second vacc block\n");
 
     double rest = 0;
 
@@ -569,7 +585,7 @@ void vaccination() {
         }
     }
 
-    printf("Before third vacc block\n");
+//    printf("Before third vacc block\n");
 
     for (int i = 0; i < incells; i++){
         for (int j = 0; j < incells; j++){
@@ -583,7 +599,7 @@ void vaccination() {
         }
     }
 
-    printf("Before fourth vacc block\n");
+//    printf("Before fourth vacc block\n");
 
     if (rest > 0){
         int sum_ccounter_normal = 0;
@@ -601,7 +617,7 @@ void vaccination() {
         }
     }
 
-    printf("End of vacc\n");
+//    printf("End of vacc\n");
 
 }
 
@@ -626,4 +642,8 @@ void writetrajectory(int framecount) {
         fputs(line, dataFile);
     }
     fclose(dataFile);
+
+//    if (framecount == 1){
+//        exit(0);
+//    }
 }
