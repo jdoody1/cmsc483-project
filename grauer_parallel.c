@@ -379,8 +379,8 @@ void calcforces() {
             for (int icount = 0; icount < cellcounter[i][j]; icount++){
                 rmin = L;
                 ip = cellindex[i][j][icount];
-                for (int ii = i-1; ii < i+1; ii++){
-                    for (int jj = j-1; jj < j+1; jj++){
+                for (int ii = i-1; ii <= i+1; ii++){
+                    for (int jj = j-1; jj <= j+1; jj++){
                         if (ii == -1)
                             icell = ncells - 1;
                         else if (ii == ncells)
@@ -473,9 +473,9 @@ void calcforces() {
                     r2 = xij*xij + yij*yij;
                     r = sqrt(r2);
                     if (r >= rmincity){
-                        rforce=-2*A_city*k_city[icity]*r*exp(-k_city[icity]*r*r);
+                        rforce=-2*A_city*k_city[icity]*r*exp(-k_city[icity]*(r*r));
                     } else {
-                        rforce=-2*A_city*k_city[icity]*rmincity*exp(-k_city[icity]*rmincity*rmincity);
+                        rforce=-2*A_city*k_city[icity]*rmincity*exp(-k_city[icity]*(rmincity*rmincity));
                     }
 
 //                    printf("rforce: %.50f\n", rforce);
@@ -502,12 +502,12 @@ void gasdev(float *harvest){
         while (true) {
             v1 = rando(&idum);
             v2 = rando(&idum);
-            v1 = 2.0 * v1 - 1.0;
-            v2 = 2.0 * v2 - 1.0;
-            rsq = pow(v1, 2) + pow(v2, 2);
+            v1 = (float)2.0 * v1 - (float)1.0;
+            v2 = (float)2.0 * v2 - (float)1.0;
+            rsq = v1*v1 + v2*v2;
             if (rsq > 0.0 && rsq < 1.0) {break;}
         }
-        rsq = sqrt(-2.0 * log(rsq) / rsq);
+        rsq = sqrtf((float)-2.0 * logf(rsq) / rsq);
         *harvest = v1 * rsq;
         g = v2 * rsq;
         gaus_stored = true;
