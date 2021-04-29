@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
-//#include <time.h>
+#include <time.h>
 #include <omp.h>
 
 int THREADS = 1;
@@ -11,7 +11,7 @@ int I4B, I2B, I1B;
 double SP, DP, SPC, DPC;
 bool LGT;
 int i,j,ncells,Nx,Ny,Np,pretime,simtime,framecount,idum,incells,equil,Ncity;
-double L,rm,rminwca,rcutoff,dx,dy,D_T,dt,time,epst,epst_attr,mindestabstand,rinf,inf_prob,maxdisease_time,availvacc,impftime,epst_attr_eff,epst_eff,A_city,A_citytmp,rmincity,rn,mincitydist,distx,disty,dist,dummy;
+double L,rm,rminwca,rcutoff,dx,dy,D_T,dt,main_time,epst,epst_attr,mindestabstand,rinf,inf_prob,maxdisease_time,availvacc,impftime,epst_attr_eff,epst_eff,A_city,A_citytmp,rmincity,rn,mincitydist,distx,disty,dist,dummy;
 FILE *infile;
 double *dxpart, *dypart, *SIR, *disease_time, *k_city, *R_city, *rnrw, *Pnrw;
 double **rp, **inc, **eff_inc, **rcity;
@@ -51,8 +51,8 @@ int main(int argc, char *argv[]) {
     printf("New total max threads: %d\n", omp_get_max_threads());
 
     // Get the starting time of our program's calculations
-    //struct timeval t0, t1;
-    //gettimeofday(&t0, 0);
+    struct timeval t0, t1;
+    gettimeofday(&t0, 0);
 
     infile = fopen(argv[1], "r");
     fscanf(infile, "%d %*[^\n]\n", &Np);
@@ -208,15 +208,16 @@ int main(int argc, char *argv[]) {
         rp[1][i] = (L-2*dx)*rando(&idum)+dx;
     }
 
-    time = 0;
+    main_time = 0;
     equil = 1;
     A_citytmp = A_city;
-    while (time < pretime){
-        if (time < pretime*1.0/4){
+    while (main_time < pretime){
+        if (main_time < pretime*1.0/4){
             A_city = 10*A_citytmp;
         } else {
             A_city = A_citytmp;
         }
+
 //        printf("Pretime: time=%d\n", time);
 //        printf("Before assigncells: %f %f\n", rp[0][0], rp[1][0]);
         assigncells();
@@ -231,7 +232,7 @@ int main(int argc, char *argv[]) {
 //        printf("Before boundarycondition: %f %f\n", rp[0][0], rp[1][0]);
         boundarycondition();
 //        printf("Before time: %f %f\n", rp[0][0], rp[1][0]);
-        time += dt;
+        main_time += dt;
     }
     equil = 0;
 
@@ -242,10 +243,10 @@ int main(int argc, char *argv[]) {
         SIR[idx] = 2;
     }
     framecount = 0;
-    time = 0.0;
+    main_time = 0.0;
 
-    while (time < simtime){
-        if (time > 0){
+    while (main_time < simtime){
+        if (main_time > 0){
             epst_eff = epst;
             epst_attr_eff = epst_attr;
         }
@@ -258,7 +259,7 @@ int main(int argc, char *argv[]) {
         diffusion();
 //        printf("Before disease_progression: %f %f\n", rp[0][0], rp[1][0]);
         disease_progression();
-        if (time > impftime){
+        if (main_time > impftime){
 //            printf("Before vaccination: %f %f\n", rp[0][0], rp[1][0]);
             vaccination();
         }
@@ -267,19 +268,18 @@ int main(int argc, char *argv[]) {
 //        printf("Before boundarycondition: %f %f\n", rp[0][0], rp[1][0]);
         boundarycondition();
 //        printf("Before writetrajectory: %f %f\n", rp[0][0], rp[1][0]);
-        if (fmod(time,2) < dt){
+        if (fmod(main_time,2) < dt){
             writetrajectory(framecount);
             framecount++;
         }
-        time += dt;
+        main_time += dt;
 //        exit(0);
     }
 
     // Get the time elapsed since starting the program timer, print that value
-    //gettimeofday(&t1, 0);
-    //double elapsed = (t1.tv_sec-t0.tv_sec) * 1.0f + (t1.tv_usec - t0.tv_usec) / 1000000.0f;
-    //printf("Total time elapsed: %f\n\n", elapsed);
-
+    gettimeofday(&t1, 0);
+    double elapsed = (t1.tv_sec-t0.tv_sec) * 1.0f + (t1.tv_usec - t0.tv_usec) / 1000000.0f;
+    printf("Total time elapsed: %f\n\n", elapsed);
     return 0;
 }
 
@@ -365,7 +365,13 @@ void assigncells() {
 
 // Convention: xij = xi-xj, yij = yi-yj, zij = zi-zj; Fij = -Fji.
 void calcforces() {
-    #pragma omp parallel for
+    // Get the starting time of our program's calculations
+    //struct timeval t0, t1;
+    //gettimeofday(&t0, 0);
+
+    #pragma omp parallel
+    {
+    #pragma omp for
     for (int i = 0; i < Np; i++){
         dxpart[i] = 0;
         dypart[i] = 0;
@@ -374,6 +380,7 @@ void calcforces() {
     int icell, jcell, ip, jp, jcount, icity;
     double r, r2, xij, yij, xforce, yforce, rforce, rmin;
 
+    #pragma omp for
     for (i = 0; i < ncells; i++){
         for (j = 0; j < ncells; j++){
             for (int icount = 0; icount < cellcounter[i][j]; icount++){
@@ -488,6 +495,12 @@ void calcforces() {
             }
         }
     }
+    }
+
+    // Get the time elapsed since starting the program timer, print that value
+    //gettimeofday(&t1, 0);
+    //double elapsed = (t1.tv_sec-t0.tv_sec) * 1.0f + (t1.tv_usec - t0.tv_usec) / 1000000.0f;
+    //printf("Total time elapsed in calcforces(): %f\n\n", elapsed);
 //    printf("dxpart: %.50f\n", dxpart[0]);
 //    exit(0);
 }
@@ -591,8 +604,8 @@ void vaccination() {
     #pragma omp parallel
     {
 
-    #pragma omp single
-    printf("Before first vacc block\n");
+    //#pragma omp single
+    //printf("Before first vacc block\n");
 
     #pragma omp for
     for (int i = 0; i < incells; i++){
@@ -605,8 +618,8 @@ void vaccination() {
         }
     }
 
-    # pragma omp single
-    printf("Before second vacc block\n");
+    //# pragma omp single
+    //printf("Before second vacc block\n");
 
     # pragma omp for
     for (int i = 0; i < incells; i++){
@@ -615,8 +628,8 @@ void vaccination() {
         }
     }
 
-    # pragma omp single
-    printf("Before third vacc block\n");
+    //# pragma omp single
+    //printf("Before third vacc block\n");
 
     # pragma omp for
     for (int i = 0; i < incells; i++){
@@ -631,8 +644,8 @@ void vaccination() {
         }
     }
 
-    #pragma omp single
-    printf("Before fourth vacc block\n");
+    //#pragma omp single
+    //printf("Before fourth vacc block\n");
 
     if (rest > 0){
         int sum_ccounter_normal = 0;
@@ -653,11 +666,13 @@ void vaccination() {
     }
     }
 
-    printf("End of vacc\n");
+    //printf("End of vacc\n");
 
 }
 
 void writetrajectory(int framecount) {
+
+    printf("writetrajectory(%d)\n", framecount);
 
     char trajFileName[14];
     snprintf(trajFileName, 14, "traj_%04d.dat", framecount);
