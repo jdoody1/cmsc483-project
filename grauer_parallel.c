@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#ifdef __linux__ 
+#include <sys/time.h>
+#endif
 #include <time.h>
 #include <omp.h>
 
@@ -381,8 +384,8 @@ void calcforces() {
     double r, r2, xij, yij, xforce, yforce, rforce, rmin;
 
     #pragma omp for
-    for (i = 0; i < ncells; i++){
-        for (j = 0; j < ncells; j++){
+    for (int i = 0; i < ncells; i++){
+        for (int j = 0; j < ncells; j++){
             for (int icount = 0; icount < cellcounter[i][j]; icount++){
                 rmin = L;
                 ip = cellindex[i][j][icount];
