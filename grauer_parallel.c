@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <string.h>
 #ifdef __linux__ 
 #include <sys/time.h>
 #endif
@@ -146,16 +147,14 @@ int main(int argc, char *argv[]) {
     rnrw = malloc(sizeof(double)*26);
     Pnrw = malloc(sizeof(double)*26);
 
+		memset(disease_time, 0, sizeof(double) * Np);
+		memset(dxpart, 0, sizeof(double) * Np);
+		memset(dypart, 0, sizeof(double) * Np);
+		memset(ncounter, 0, sizeof(int) * Np);
+		memset(ncounter_new, 0, sizeof(int) * Np);
     for (int idx = 0; idx < Np; idx++) {
-        disease_time[idx] = 0;
-        dxpart[idx] = 0;
-        dypart[idx] = 0;
-        ncounter[idx] = 0;
-        for (int jdx = 0; jdx < Np; jdx++){
-            nindex[idx][jdx] = 0;
-            nindex_new[idx][jdx] = 0;
-        }
-        ncounter_new[idx] = 0;
+			memset(nindex[idx], 0, sizeof(int) * Np);
+			memset(nindex_new[idx], 0, sizeof(int) * Np);
     }
 
     dist = 0;
@@ -190,10 +189,8 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < 26; i++){
         Pnrw[i] = 1/rnrw[i]*1/log(rnrw[25]/rnrw[0]);
     }
+		memset(R_city, 0, sizeof(double) * Ncity);
 
-    for (int idx = 0; idx < Ncity; idx++){
-        R_city[idx] = 0;
-    }
     for (j = 0; j < Ncity; j++){
         while (R_city[j] == 0){
             rn = rando(&idum);
@@ -239,12 +236,8 @@ int main(int argc, char *argv[]) {
     }
     equil = 0;
 
-    for (int idx = 0; idx < Np; idx++){
-        SIR[idx] = 1;
-    }
-    for (int idx = 0; idx < Np/2000; idx++){
-        SIR[idx] = 2;
-    }
+		memset(SIR, 1, sizeof(double) * Np);
+		memset(SIR, 2, sizeof(double) * Np/2000);
     framecount = 0;
     main_time = 0.0;
 
@@ -318,31 +311,24 @@ double rando(int *idum){
  * particle indices in each cell are sorted from low to high.
  */
 void assigncells() {
+
+    for (int i = 0; i < ncells; i++){
+        memset(cellcounter[i], 0, sizeof(int) * ncells);
+        for (int j = 0; j < ncells; j++){
+            memset(cellindex[i][j], 0, sizeof(int) * Np);
+        }
+    }
+
+    for (int i = 0; i < incells; i++){
+        memset(ccounter_infected[i], 0, sizeof(int) * incells);
+        memset(ccounter_normal[i], 0, sizeof(int) * incells);
+        for (int j = 0; j < incells; j++){
+            memset(cindex_normal[i][j], 0, sizeof(int) * incells);
+        }
+    }    
+
     #pragma omp parallel
     {
-    #pragma omp for
-    for (int i = 0; i < ncells; i++){
-        for (int j = 0; j < ncells; j++){
-            cellcounter[i][j] = 0;
-            for (int k = 0; k < Np; k++){
-                cellindex[i][j][k] = 0;
-            }
-        }
-    }
-
-    #pragma omp for
-    for (int i = 0; i < incells; i++){
-        for (int j = 0; j < incells; j++){
-            ccounter_infected[i][j] = 0;
-            ccounter_normal[i][j] = 0;
-            for (int k = 0; k < incells; k++){
-                cindex_normal[i][j][k] = 0;
-            }
-        }
-    }
-
-    // int ii, jj, ip;
-    // int i, j;
 
     #pragma omp for
     for (int ip = 0; ip < Np; ip++){
@@ -371,14 +357,10 @@ void calcforces() {
     // Get the starting time of our program's calculations
     //struct timeval t0, t1;
     //gettimeofday(&t0, 0);
-
+    memset(dxpart, 0, sizeof(double) * Np);
+    memset(dypart, 0, sizeof(double) * Np);
     #pragma omp parallel
     {
-    #pragma omp for
-    for (int i = 0; i < Np; i++){
-        dxpart[i] = 0;
-        dypart[i] = 0;
-    }
 
     int icell, jcell, ip, jp, jcount, icity;
     double r, r2, xij, yij, xforce, yforce, rforce, rmin;
