@@ -3,12 +3,13 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <time.h>
 
 int I4B, I2B, I1B;
 double SP, DP, SPC, DPC;
 bool LGT;
 int i,j,ncells,Nx,Ny,Np,pretime,simtime,framecount,idum,incells,equil,Ncity;
-double L,rm,rminwca,rcutoff,dx,dy,D_T,dt,time,epst,epst_attr,mindestabstand,rinf,inf_prob,maxdisease_time,availvacc,impftime,epst_attr_eff,epst_eff,A_city,A_citytmp,rmincity,rn,mincitydist,distx,disty,dist,dummy;
+double L,rm,rminwca,rcutoff,dx,dy,D_T,dt,main_time,epst,epst_attr,mindestabstand,rinf,inf_prob,maxdisease_time,availvacc,impftime,epst_attr_eff,epst_eff,A_city,A_citytmp,rmincity,rn,mincitydist,distx,disty,dist,dummy;
 FILE *infile;
 double *dxpart, *dypart, *SIR, *disease_time, *k_city, *R_city, *rnrw, *Pnrw;
 double **rp, **inc, **eff_inc, **rcity;
@@ -33,6 +34,10 @@ int main(int argc, char *argv[]) {
         printf("You must supply the input file\n");
         exit(1);
     }
+
+    struct timeval t0, t1;
+    mingw_gettimeofday(&t0, 0);
+
     infile = fopen(argv[1], "r");
     fscanf(infile, "%d %*[^\n]\n", &Np);
     fscanf(infile, "%lf %*[^\n]\n", &L);
@@ -187,11 +192,11 @@ int main(int argc, char *argv[]) {
         rp[1][i] = (L-2*dx)*rando(&idum)+dx;
     }
 
-    time = 0;
+    main_time = 0;
     equil = 1;
     A_citytmp = A_city;
-    while (time < pretime){
-        if (time < pretime*1.0/4){
+    while (main_time < pretime){
+        if (main_time < pretime/4){
             A_city = 10*A_citytmp;
         } else {
             A_city = A_citytmp;
@@ -212,7 +217,7 @@ int main(int argc, char *argv[]) {
 //        printf("Before boundarycondition: %.60f %.60f\n", rp[0][0], rp[1][0]);
         boundarycondition();
 //        printf("Before time: %.60f %.60f\n", rp[0][0], rp[1][0]);
-        time += dt;
+        main_time += dt;
 //        exit(0);
     }
     equil = 0;
@@ -224,10 +229,10 @@ int main(int argc, char *argv[]) {
         SIR[idx] = 2;
     }
     framecount = 0;
-    time = 0.0;
+    main_time = 0.0;
 
-    while (time < simtime){
-        if (time > 0){
+    while (main_time < simtime){
+        if (main_time > 0){
             epst_eff = epst;
             epst_attr_eff = epst_attr;
         }
@@ -240,7 +245,7 @@ int main(int argc, char *argv[]) {
         diffusion();
 //        printf("Before disease_progression: %.60f %.60f\n", rp[0][0], rp[1][0]);
         disease_progression();
-        if (time > impftime){
+        if (main_time > impftime){
 //            printf("Before vaccination: %.60f %.60f\n", rp[0][0], rp[1][0]);
             vaccination();
         }
@@ -248,15 +253,18 @@ int main(int argc, char *argv[]) {
         move();
 //        printf("Before boundarycondition: %.60f %.60f\n", rp[0][0], rp[1][0]);
         boundarycondition();
-        if (fmod(time,2) < dt){
+        if (fmod(main_time,2) < dt){
 //            printf("Before writetrajectory: %.60f %.60f\n", rp[0][0], rp[1][0]);
             writetrajectory(framecount);
             framecount++;
         }
-        time += dt;
+        main_time += dt;
 //        exit(0);
     }
 
+    mingw_gettimeofday(&t1, 0);
+    double elapsed = (t1.tv_sec-t0.tv_sec) * 1.0f + (t1.tv_usec - t0.tv_usec) / 1000000.0f;
+    printf("Total time elapsed: %f\n\n", elapsed);
     return 0;
 }
 
@@ -383,9 +391,9 @@ void calcforces() {
                                 // count neighbors - social distancing
                                 if (r <= 1.5*mindestabstand){
                                     ncounter_new[ip] = ncounter_new[ip] + 1;
-                                    nindex_new[ip][ncounter_new[ip]] = jp;
+                                    nindex_new[ip][ncounter_new[ip]-1] = jp;
                                     if (r <= rmin) {
-                                        nindex_new[ip][ncounter_new[ip]] = nindex_new[ip][0];
+                                        nindex_new[ip][ncounter_new[ip]-1] = nindex_new[ip][0];
                                         nindex_new[ip][0] = jp;
                                         rmin = r;
                                     }
@@ -394,8 +402,10 @@ void calcforces() {
                                 // Infection
                                 if ((equil == 0) && (r <= rinf) && ((SIR[ip] == 2) || (SIR[ip] == 3)) && (SIR[jp] == 1)){
                                     if (rando(&idum) <= inf_prob){
-                                        if (rando(&idum) <= 0.75) SIR[jp] = 2;
-                                        else SIR[jp] = 3;
+                                        if (rando(&idum) <= 0.75)
+                                            SIR[jp] = 2;
+                                        else
+                                            SIR[jp] = 3;
                                     }
                                 }
 
@@ -449,7 +459,7 @@ void calcforces() {
                     r = sqrt(r2);
                     if (r >= rmincity){
 //                        printf("First rforce option\n");
-//                        printf("Parameter: %.60f\n", exp(-k_city[icity]*(r*r)));
+//                        printf("Parameter: %.60f\n", A_city);
                         rforce=-2*A_city*k_city[icity]*r*exp(-k_city[icity]*(r*r));
                     } else {
 //                        printf("Second rforce option\n");
