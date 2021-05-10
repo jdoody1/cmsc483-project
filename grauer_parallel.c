@@ -212,7 +212,7 @@ int main(int argc, char *argv[]) {
     equil = 1;
     A_citytmp = A_city;
     while (main_time < pretime){
-        if (main_time < pretime*1.0/4){
+        if (main_time < pretime/4){
             A_city = 10*A_citytmp;
         } else {
             A_city = A_citytmp;
